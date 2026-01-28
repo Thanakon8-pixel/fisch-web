@@ -1,73 +1,45 @@
-const express = require('express');
-const app = express();
-app.use(express.json());
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BSS Honey Monitor</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: white; display: flex; gap: 20px; padding: 20px; flex-wrap: wrap; }
+        .card { background: #2d2d2d; border-radius: 12px; padding: 20px; width: 250px; border: 1px solid #444; }
+        .username { font-size: 1.2em; color: #ffca28; margin-bottom: 10px; }
+        .stat { margin: 5px 0; font-size: 0.9em; }
+        .bar-bg { background: #444; height: 10px; border-radius: 5px; margin-top: 10px; overflow: hidden; }
+        .bar-fill { background: #4caf50; height: 100%; transition: width 0.5s; }
+        .honey-text { color: #fbc02d; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="dashboard">รอการเชื่อมต่อจากเกม...</div>
 
-let players = {}; 
+    <script>
+        const ws = new WebSocket('ws://localhost:8080');
+        const container = document.getElementById('dashboard');
 
-// รับข้อมูลจาก Roblox
-app.post('/update', (req, res) => {
-    const data = req.body;
-    console.log("Received Data:", data); // ดูใน Logs ของ Render จะเห็นข้อมูลเด้งรัวๆ
+        ws.onmessage = (event) => {
+            const allStats = JSON.parse(event.data);
+            container.innerHTML = ''; // ล้างหน้าจอเพื่อวาดใหม่
 
-    if (data && data.username) {
-        players[data.username] = {
-            level: data.level || 0,
-            money: data.money || 0,
-            fish: data.fish || "Fishing...",
-            rod: data.rod || "None",
-            time: new Date().toLocaleTimeString('th-TH')
+            allStats.forEach(player => {
+                const pollenPercent = (player.pollen / player.maxPollen) * 100;
+                
+                const card = `
+                    <div class="card">
+                        <div class="username">👤 ${player.username}</div>
+                        <div class="stat">🍯 Honey: <span class="honey-text">${player.honey.toLocaleString()}</span></div>
+                        <div class="stat">⚪ Pollen: ${player.pollen.toLocaleString()}</div>
+                        <div class="bar-bg">
+                            <div class="bar-fill" style="width: ${pollenPercent}%"></div>
+                        </div>
+                        <div style="font-size: 10px; color: #888; margin-top: 10px;">อัปเดตเมื่อ: ${player.lastSeen}</div>
+                    </div>
+                `;
+                container.innerHTML += card;
+            });
         };
-    }
-    res.status(200).send("OK");
-});
-
-// หน้าแสดงผล (เวอร์ชันชัวร์ที่สุด)
-app.get('/', (req, res) => {
-    let rows = Object.keys(players).map(name => {
-        const p = players[name];
-        return `
-            <tr>
-                <td><b>${name}</b></td>
-                <td style="color:#00ff88">Lv. ${p.level}</td>
-                <td style="color:#ffd700">${p.money.toLocaleString()} C$</td>
-                <td>${p.fish}</td>
-                <td>${p.rod}</td>
-                <td style="color:#666; font-size:12px">${p.time}</td>
-            </tr>`;
-    }).join('');
-
-    res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>FISCH LIVE TRACKER</title>
-            <meta http-equiv="refresh" content="3"> <style>
-                body { background: #0b0b0b; color: #e0e0e0; font-family: sans-serif; padding: 20px; }
-                .container { max-width: 1000px; margin: auto; background: #161616; padding: 20px; border-radius: 12px; border: 1px solid #333; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th { text-align: left; color: #00ff88; padding: 12px; border-bottom: 2px solid #333; }
-                td { padding: 12px; border-bottom: 1px solid #222; }
-                .live-dot { height: 10px; width: 10px; background: #ff4444; border-radius: 50%; display: inline-block; animation: blink 1s infinite; }
-                @keyframes blink { 50% { opacity: 0; } }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h2><span class="live-dot"></span> FISCH GLOBAL TRACKER</h2>
-                <p style="font-size:12px; color:#555">Auto-refreshing every 3s...</p>
-                <table>
-                    <thead>
-                        <tr><th>Player</th><th>Level</th><th>Money</th><th>Recent Fish</th><th>Rod</th><th>Update</th></tr>
-                    </thead>
-                    <tbody>
-                        ${rows || '<tr><td colspan="6" style="text-align:center">Waiting for game data... (Try fishing in-game)</td></tr>'}
-                    </tbody>
-                </table>
-            </div>
-        </body>
-        </html>
-    `);
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('Server is Online'));
+    </script>
+</body>
+</html>
