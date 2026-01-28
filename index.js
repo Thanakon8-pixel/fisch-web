@@ -1,11 +1,5 @@
 const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
-
 app.use(express.json());
 
 let players = {}; 
@@ -13,7 +7,7 @@ let players = {};
 // รับข้อมูลจาก Roblox
 app.post('/update', (req, res) => {
     const data = req.body;
-    console.log("ได้รับข้อมูล:", data); // ดูใน Logs ของ Render
+    console.log("Received Data:", data); // ดูใน Logs ของ Render จะเห็นข้อมูลเด้งรัวๆ
 
     if (data && data.username) {
         players[data.username] = {
@@ -23,21 +17,31 @@ app.post('/update', (req, res) => {
             rod: data.rod || "None",
             time: new Date().toLocaleTimeString('th-TH')
         };
-        // ส่งกระจายเสียงไปที่หน้าเว็บทันที
-        io.emit('dataUpdate', players);
     }
     res.status(200).send("OK");
 });
 
-// หน้าแสดงผล
+// หน้าแสดงผล (เวอร์ชันชัวร์ที่สุด)
 app.get('/', (req, res) => {
+    let rows = Object.keys(players).map(name => {
+        const p = players[name];
+        return `
+            <tr>
+                <td><b>${name}</b></td>
+                <td style="color:#00ff88">Lv. ${p.level}</td>
+                <td style="color:#ffd700">${p.money.toLocaleString()} C$</td>
+                <td>${p.fish}</td>
+                <td>${p.rod}</td>
+                <td style="color:#666; font-size:12px">${p.time}</td>
+            </tr>`;
+    }).join('');
+
     res.send(`
         <!DOCTYPE html>
         <html>
         <head>
             <title>FISCH LIVE TRACKER</title>
-            <script src="/socket.io/socket.io.js"></script>
-            <style>
+            <meta http-equiv="refresh" content="3"> <style>
                 body { background: #0b0b0b; color: #e0e0e0; font-family: sans-serif; padding: 20px; }
                 .container { max-width: 1000px; margin: auto; background: #161616; padding: 20px; border-radius: 12px; border: 1px solid #333; }
                 table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -49,39 +53,21 @@ app.get('/', (req, res) => {
         </head>
         <body>
             <div class="container">
-                <h2><span class="live-dot"></span> FISCH GLOBAL TRACKER (REAL-TIME)</h2>
+                <h2><span class="live-dot"></span> FISCH GLOBAL TRACKER</h2>
+                <p style="font-size:12px; color:#555">Auto-refreshing every 3s...</p>
                 <table>
                     <thead>
                         <tr><th>Player</th><th>Level</th><th>Money</th><th>Recent Fish</th><th>Rod</th><th>Update</th></tr>
                     </thead>
-                    <tbody id="player-list">
-                        <tr><td colspan="6" style="text-align:center">Waiting for game data...</td></tr>
+                    <tbody>
+                        ${rows || '<tr><td colspan="6" style="text-align:center">Waiting for game data... (Try fishing in-game)</td></tr>'}
                     </tbody>
                 </table>
             </div>
-            <script>
-                const socket = io();
-                const tbody = document.getElementById('player-list');
-
-                socket.on('dataUpdate', (players) => {
-                    console.log("Update received!");
-                    tbody.innerHTML = Object.keys(players).map(name => {
-                        const p = players[name];
-                        return \`<tr>
-                            <td><b>\${name}</b></td>
-                            <td style="color:#00ff88">Lv. \${p.level}</td>
-                            <td style="color:#ffd700">\${p.money.toLocaleString()} C$</td>
-                            <td>\${p.fish}</td>
-                            <td>\${p.rod}</td>
-                            <td style="color:#666; font-size:12px">\${p.time}</td>
-                        </tr>\`;
-                    }).join('');
-                });
-            </script>
         </body>
         </html>
     `);
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('Server is Online'));
+app.listen(PORT, () => console.log('Server is Online'));
