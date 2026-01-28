@@ -5,8 +5,17 @@ app.use(express.json());
 let playerStats = {}; // เก็บข้อมูลแยกรายคน
 
 app.post('/update', (req, res) => {
-    const { username, fish, money, level, rod, timestamp } = req.body;
-    playerStats[username] = { fish, money, level, rod, timestamp };
+    const data = req.body;
+    console.log("Data received:", data); // ดูใน Logs ของ Render ว่าข้อมูลมาถึงไหม
+    
+    const username = data.username || "Unknown";
+    playerStats[username] = {
+        level: data.level || 0,
+        money: data.money || data.C$ || 0, // รองรับทั้ง money และ C$
+        fish: data.fish || "Fishing...",
+        rod: data.rod || "None",
+        timestamp: data.timestamp || "Now"
+    };
     res.send("Updated");
 });
 
@@ -53,3 +62,4 @@ const port = process.env.PORT || 3000;
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
+
